@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>幸运大转盘 · 20~100</title>
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --card-bg: #16213e;
+            --accent: #f0a500;
+            --accent2: #e94560;
+            --gold: #d4a574;
+            --btn-gradient: linear-gradient(135deg, #f0a500 0%, #e94560 100%);
+            --btn-hover: linear-gradient(135deg, #ffb833 0%, #ff5a7a 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            background-image:
+                radial-gradient(ellipse at center, rgba(240, 165, 0, 0.06) 0%, transparent 70%),
+                radial-gradient(ellipse at 30% 20%, rgba(233, 69, 96, 0.04) 0%, transparent 60%),
+                radial-gradient(ellipse at 70% 80%, rgba(240, 165, 0, 0.05) 0%, transparent 60%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+            padding: 20px;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+            max-width: 560px;
+        }
+
+        .title {
+            font-size: clamp(1.6rem, 3.5vw, 2.2rem);
+            font-weight: 900;
+            letter-spacing: 0.06em;
+            background: linear-gradient(135deg, #f0a500 0%, #ffd700 40%, #e94560 70%, #ff6b8a 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+            margin-bottom: 4px;
+            text-align: center;
+        }
+        .subtitle {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.5);
+            letter-spacing: 0.08em;
+            text-align: center;
+        }
+
+        .wheel-wrapper {
+            position: relative;
+            flex-shrink: 0;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+        }
+        .wheel-glow {
+            position: absolute;
+            inset: -8%;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(240,165,0,0.18) 0%, rgba(233,69,96,0.08) 40%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+            animation: glowPulse 3s ease-in-out infinite;
+        }
+        @keyframes glowPulse {
+            0%,100% { opacity:0.7; transform:scale(1); }
+            50% { opacity:1; transform:scale(1.04); }
+        }
+        .wheel-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        canvas {
+            display: block;
+            background: transparent;
+        }
+
+        .pointer-overlay {
+            position: absolute;
+            top: -2.5%;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            pointer-events: none;
+            filter: drop-shadow(0 4px 12px rgba(233,69,96,0.7));
+            animation: pointerBounce 2s ease-in-out infinite;
+        }
+        @keyframes pointerBounce {
+            0%,100% { transform:translateX(-50%) translateY(0); }
+            40% { transform:translateX(-50%) translateY(-6px); }
+            60% { transform:translateX(-50%) translateY(-3px); }
+        }
+        .pointer-svg {
+            width: clamp(36px, 7vw, 48px);
+            height: auto;
+            display: block;
+        }
+
+        .btn-spin {
+            position: relative;
+            padding: 16px 56px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            color: #fff;
+            background: var(--btn-gradient);
+            border: none;
+            border-radius: 60px;
+            cursor: pointer;
+            box-shadow: 0 8px 30px rgba(233,69,96,0.45), 0 2px 8px rgba(0,0,0,0.3);
+            transition: all 0.3s;
+            outline: none;
+            -webkit-appearance: none;
+            overflow: hidden;
+            z-index: 1;
+        }
+        .btn-spin:hover:not(:disabled) {
+            background: var(--btn-hover);
+            box-shadow: 0 14px 40px rgba(233,69,96,0.6);
+            transform: translateY(-3px);
+        }
+        .btn-spin:active:not(:disabled) {
+            transform: translateY(0) scale(0.96);
+            transition: 0.1s;
+        }
+        .btn-spin:disabled {
+            background: #555;
+            color: #999;
+            cursor: not-allowed;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .btn-ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.35);
+            transform: scale(0);
+            animation: ripple 0.7s ease-out forwards;
+            pointer-events: none;
+        }
+        @keyframes ripple {
+            to { transform:scale(6); opacity:0; }
+        }
+
+        .result-area {
+            min-height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .result-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--card-bg);
+            border: 2px solid rgba(240,165,0,0.5);
+            border-radius: 40px;
+            padding: 10px 22px;
+            font-weight: 700;
+            color: #ffd700;
+            animation: popIn 0.5s ease;
+            box-shadow: 0 4px 20px rgba(240,165,0,0.2);
+        }
+        .result-num {
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: #fff;
+            background: var(--accent2);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        @keyframes popIn {
+            0% { transform:scale(0); opacity:0; }
+            70% { transform:scale(1.1); }
+            100% { transform:scale(1); opacity:1; }
+        }
+        .result-placeholder {
+            color: rgba(255,255,255,0.3);
+            font-size: 0.9rem;
+        }
+
+        .history-area {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .history-label {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.45);
+        }
+        .history-tags {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .history-tag {
+            background: var(--card-bg);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 20px;
+            padding: 5px 14px;
+            font-size: 0.85rem;
+            color: #ccc;
+            animation: fadeInTag 0.4s;
+        }
+        .history-tag:first-child {
+            border-color: rgba(240,165,0,0.7);
+            color: #ffd700;
+        }
+        @keyframes fadeInTag {
+            from { opacity:0; transform:translateY(-8px); }
+        }
+
+        @media (max-width: 480px) {
+            .btn-spin { padding:14px 40px; font-size:1rem; }
+            .result-num { width:36px; height:36px; font-size:1.3rem; }
+            .history-tag { padding:4px 10px; font-size:0.75rem; }
+            .title { font-size:1.4rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="main-container">
+    <div>
+        <h1 class="title">🎰 幸运大转盘</h1>
+        <p class="subtitle">20 ~ 100 · 步步为赢</p>
+    </div>
+
+    <div class="wheel-wrapper" id="wheelWrapper">
+        <div class="wheel-glow"></div>
+        <div class="wheel-inner">
+            <canvas id="wheelCanvas" aria-label="幸运转盘，数字范围20到100，每5递增"></canvas>
+            <div class="pointer-overlay">
+                <svg class="pointer-svg" viewBox="0 0 48 56">
+                    <defs>
+                        <filter id="pointerShadow"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#e94560" flood-opacity="0.8"/></filter>
+                        <linearGradient id="pointerGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#ff5a7a"/><stop offset="100%" stop-color="#c0392b"/>
+                        </linearGradient>
+                    </defs>
+                    <polygon points="24,54 4,0 44,0" fill="url(#pointerGrad)" stroke="#fff" stroke-width="2.5" filter="url(#pointerShadow)" stroke-linejoin="round"/>
+                    <circle cx="24" cy="10" r="4" fill="#fff" opacity="0.9"/>
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <button class="btn-spin" id="btnSpin">🎯 开 始 旋 转</button>
+    <div class="result-area" id="resultArea"><span class="result-placeholder">👆 点击按钮试试手气</span></div>
+    <div class="history-area">
+        <span class="history-label">📋 最近结果：</span>
+        <span class="history-tags" id="historyTags"><span style="color:rgba(255,255,255,0.3)">暂无记录</span></span>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // 数值 20~100 步长5
+        const VALUES = [];
+        for (let i = 20; i <= 100; i += 5) VALUES.push(i);
+        const NUM_SECTORS = VALUES.length;
+        const SECTOR_ANGLE = (2 * Math.PI) / NUM_SECTORS;
+        const LOGIC_SIZE = 500;
+        const WHEEL_RADIUS = 215;
+        const CENTER = LOGIC_SIZE / 2;
+
+        const canvas = document.getElementById('wheelCanvas');
+        const ctx = canvas.getContext('2d');
+        const btnSpin = document.getElementById('btnSpin');
+        const resultArea = document.getElementById('resultArea');
+        const historyTags = document.getElementById('historyTags');
+        const wheelWrapper = document.getElementById('wheelWrapper');
+
+        let currentRotation = 0;
+        let isSpinning = false;
+        let animationId = null;
+        let history = [];
+
+        function getWheelSize() {
+            const maxWidth = 480;
+            const vw = document.documentElement.clientWidth || window.innerWidth;
+            return Math.min(maxWidth, vw * 0.85);
+        }
+
+        function resizeWheel() {
+            const size = getWheelSize();
+            if (size <= 0) return false;
+            wheelWrapper.style.width = size + 'px';
+            wheelWrapper.style.height = size + 'px';
+            canvas.style.width = size + 'px';
+            canvas.style.height = size + 'px';
+            setupCanvasPixelRatio();
+            return true;
+        }
+
+        function setupCanvasPixelRatio() {
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            canvas.width = LOGIC_SIZE * dpr;
+            canvas.height = LOGIC_SIZE * dpr;
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.scale(dpr, dpr);
+        }
+
+        function sectorColors(i) {
+            const hue = (i * (360 / NUM_SECTORS)) % 360;
+            const s = 68 + (i % 3) * 8;
+            const l = 50 + (i % 2) * 10;
+            return {
+                main: `hsl(${hue},${s}%,${l}%)`,
+                light: `hsl(${hue},${s}%,${l+8}%)`,
+                dark: `hsl(${hue},${s}%,${l-10}%)`
+            };
+        }
+
+        function drawWheel(rot) {
+            ctx.clearRect(0, 0, LOGIC_SIZE, LOGIC_SIZE);
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(CENTER, CENTER, WHEEL_RADIUS+8, 0, 2*Math.PI);
+            ctx.fillStyle = 'rgba(0,0,0,0.35)';
+            ctx.fill();
+            ctx.restore();
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(CENTER, CENTER, WHEEL_RADIUS+5, 0, 2*Math.PI);
+            const ringGrad = ctx.createRadialGradient(CENTER,CENTER,WHEEL_RADIUS+1,CENTER,CENTER,WHEEL_RADIUS+6);
+            ringGrad.addColorStop(0,'#d4a574');
+            ringGrad.addColorStop(0.5,'#f0d5b8');
+            ringGrad.addColorStop(1,'#8b6914');
+            ctx.fillStyle = ringGrad;
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.restore();
+
+            ctx.save();
+            ctx.translate(CENTER, CENTER);
+            ctx.rotate(rot);
+
+            for (let i = 0; i < NUM_SECTORS; i++) {
+                const start = i * SECTOR_ANGLE - Math.PI/2;
+                const end = (i+1) * SECTOR_ANGLE - Math.PI/2;
+                const mid = start + SECTOR_ANGLE/2;
+                const col = sectorColors(i);
+
+                const grad = ctx.createRadialGradient(0,0,WHEEL_RADIUS*0.25,0,0,WHEEL_RADIUS);
+                grad.addColorStop(0, col.light);
+                grad.addColorStop(0.6, col.main);
+                grad.addColorStop(1, col.dark);
+
+                ctx.beginPath();
+                ctx.moveTo(0,0);
+                ctx.arc(0,0,WHEEL_RADIUS,start,end);
+                ctx.closePath();
+                ctx.fillStyle = grad;
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+                ctx.lineWidth = 1.2;
+                ctx.stroke();
+
+                const textRad = WHEEL_RADIUS*0.7;
+                const tx = Math.cos(mid)*textRad;
+                const ty = Math.sin(mid)*textRad;
+                ctx.save();
+                ctx.translate(tx,ty);
+                ctx.rotate(mid + Math.PI/2);
+                const str = VALUES[i].toString();
+                ctx.font = `bold ${str.length===3?14:16}px "PingFang SC","Microsoft YaHei",sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+                ctx.lineWidth = 3.5;
+                ctx.lineJoin = 'round';
+                ctx.strokeText(str,0,0);
+                ctx.fillStyle = '#fff';
+                ctx.fillText(str,0,0);
+                ctx.restore();
+            }
+            ctx.restore();
+
+            const cGrad = ctx.createRadialGradient(CENTER,CENTER,8,CENTER,CENTER,36);
+            cGrad.addColorStop(0,'#fffef5');
+            cGrad.addColorStop(0.35,'#f0d5b8');
+            cGrad.addColorStop(0.7,'#c8965c');
+            cGrad.addColorStop(1,'#6b3a1f');
+            ctx.beginPath();
+            ctx.arc(CENTER,CENTER,34,0,2*Math.PI);
+            ctx.fillStyle = cGrad;
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(CENTER,CENTER,7,0,2*Math.PI);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+
+        // ========== 核心修复：正确计算目标旋转角度 ==========
+        function computeTargetRotation(targetIndex) {
+            // 扇区中心在转盘坐标系中的角度 (从3点钟方向顺时针)
+            // 扇区绘制起始角 = i * SECTOR_ANGLE - π/2，因此中心角 = 起始角 + SECTOR_ANGLE/2 = i*SECTOR_ANGLE + SECTOR_ANGLE/2 - π/2
+            const centerAngle = targetIndex * SECTOR_ANGLE + SECTOR_ANGLE/2 - Math.PI/2;
+            // 指针方向固定为 -π/2 (12点)，指针在转盘坐标系中的角度 = -π/2 - rotation
+            // 令 -π/2 - rotation = centerAngle  =>  rotation = -π/2 - centerAngle
+            let rotation = (-Math.PI/2 - centerAngle) % (2 * Math.PI);
+            if (rotation < 0) rotation += 2 * Math.PI;
+            return rotation;
+        }
+
+        function spin() {
+            if (isSpinning) return;
+            isSpinning = true;
+            btnSpin.disabled = true;
+            btnSpin.textContent = '🌀 旋转中...';
+            resultArea.innerHTML = '<span style="color:rgba(255,255,255,0.4)">旋转中...</span>';
+
+            // 随机选择目标扇区
+            const targetIndex = Math.floor(Math.random() * NUM_SECTORS);
+            const targetValue = VALUES[targetIndex];
+
+            // 计算精确的目标旋转角度，并在扇区内添加微小偏移
+            let targetRotation = computeTargetRotation(targetIndex);
+            const jitter = (Math.random() - 0.5) * SECTOR_ANGLE * 0.7; // 扇区内的随机偏移
+            targetRotation = (targetRotation + jitter + 2 * Math.PI) % (2 * Math.PI);
+
+            const FULL = 2 * Math.PI;
+            const extraRounds = 6 + Math.floor(Math.random() * 6); // 额外旋转圈数
+            let delta = targetRotation - (currentRotation % FULL);
+            if (delta < 0) delta += FULL;
+            delta += extraRounds * FULL;
+
+            const startRot = currentRotation;
+            const totalDelta = delta;
+            const duration = 3200 + Math.random() * 800;
+            const startTime = performance.now();
+
+            function ease(t) {
+                const c = 1 - Math.pow(1 - t, 3);
+                const q = 1 - Math.pow(1 - t, 4);
+                return t < 0.7 ? c * 0.85 : 0.85 + q * 0.15;
+            }
+
+            function animate(now) {
+                const elapsed = now - startTime;
+                const prog = Math.min(elapsed / duration, 1);
+                currentRotation = startRot + totalDelta * ease(prog);
+                drawWheel(currentRotation);
+                if (prog < 1) {
+                    animationId = requestAnimationFrame(animate);
+                } else {
+                    currentRotation = (startRot + totalDelta) % FULL;
+                    if (currentRotation < 0) currentRotation += FULL;
+                    drawWheel(currentRotation);
+                    finish(targetValue);
+                }
+            }
+            animationId = requestAnimationFrame(animate);
+        }
+
+        function finish(val) {
+            isSpinning = false;
+            btnSpin.disabled = false;
+            btnSpin.textContent = '🎯 再 来 一 次';
+            resultArea.innerHTML = `<div class="result-badge">🎉 结果：<span class="result-num">${val}</span></div>`;
+            history.unshift(val);
+            if (history.length > 8) history.pop();
+            historyTags.innerHTML = history.map((v, i) => `<span class="history-tag">${i === 0 ? '🆕' : '·'} ${v}</span>`).join('');
+            if (navigator.vibrate) navigator.vibrate([30, 60, 30]);
+        }
+
+        btnSpin.addEventListener('click', (e) => {
+            if (isSpinning) return;
+            const ripple = document.createElement('span');
+            ripple.className = 'btn-ripple';
+            const rect = btnSpin.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            ripple.style.width = ripple.style.height = size + 'px';
+            ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+            ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+            btnSpin.appendChild(ripple);
+            ripple.onanimationend = () => ripple.remove();
+            spin();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !isSpinning && document.activeElement === document.body) {
+                e.preventDefault();
+                spin();
+            }
+        });
+
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                if (resizeWheel()) {
+                    drawWheel(currentRotation);
+                }
+            }, 150);
+        });
+
+        function safeInit() {
+            if (!resizeWheel()) {
+                requestAnimationFrame(safeInit);
+                return;
+            }
+            currentRotation = Math.random() * 2 * Math.PI;
+            drawWheel(currentRotation);
+        }
+
+        if (document.readyState === 'complete') {
+            safeInit();
+        } else {
+            window.addEventListener('load', safeInit);
+        }
+    })();
+</script>
+</body>
+</html>
